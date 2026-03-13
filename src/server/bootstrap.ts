@@ -1,18 +1,13 @@
-'use strict';
 
-const strapiDbProxy = require('./proxy/strapi-db-proxy');
-const { createLogger } = require('./utils/logger');
+import strapiDbProxy from './proxy/strapi-db-proxy';
+import { createLogger } from './utils/logger';
+import { Core } from '@strapi/strapi';
 
-module.exports = async ({ strapi }) => {
+export default async ({ strapi }: { strapi: Core.Strapi }) => {
   const log = createLogger(strapi);
 
   // ─── STEP 1: Install the strapi-db-proxy ───────────────────────────────────
   // Strapi 5 uses getSchemaName() + withSchema() to qualify ALL ORM queries.
-  // e.g.: SELECT * FROM "public"."up_users"   (without proxy)
-  //       SELECT * FROM "acme"."up_users"     (with proxy) ← correct isolation
-  //
-  // For system tables (admin_*, strapi_*), the schema-manager creates VIEWS
-  // in the tenant schema pointing to public — so "acme"."admin_users" → public.admin_users.
   strapiDbProxy.install(strapi);
 
   // ─── STEP 2: Ensure control table exists ───────────────────────────────────

@@ -1,12 +1,12 @@
-'use strict';
 
-const tenantContext = require('../context/tenant-context');
-const { createLogger } = require('../utils/logger');
+import * as tenantContext from '../context/tenant-context';
+import { createLogger } from '../utils/logger';
+import { Core } from '@strapi/strapi';
 
-module.exports = (config, { strapi }) => {
+export default (config: any, { strapi }: { strapi: Core.Strapi }) => {
   const log = createLogger(strapi);
 
-  return async (ctx, next) => {
+  return async (ctx: any, next: () => Promise<void>) => {
     // Prefer hostname (reliable with app.proxy = true behind a reverse proxy).
     // Fall back to Origin/Referer when the frontend is on a different subdomain than the API.
     let hostname = ctx.request.hostname;
@@ -17,7 +17,7 @@ module.exports = (config, { strapi }) => {
       process.env.ROOT_DOMAIN
     );
 
-    let slug = extractSubdomain(hostname, rootDomain);
+    let slug = extractSubdomain(hostname, rootDomain as string);
 
     // If not resolved via Host header, try Origin/Referer (fallback)
     if (!slug) {
@@ -27,7 +27,7 @@ module.exports = (config, { strapi }) => {
           const originUrl = new URL(origin);
           hostname = originUrl.hostname;
           hostnameSource = 'origin/referer';
-          slug = extractSubdomain(hostname, rootDomain);
+          slug = extractSubdomain(hostname, rootDomain as string);
         } catch (_) { }
       }
     }
@@ -53,10 +53,10 @@ module.exports = (config, { strapi }) => {
       .plugin('multitenancy')
       .service('tenantManager');
 
-    let tenant;
+    let tenant: any;
     try {
       tenant = await tenantService.getTenant(slug);
-    } catch (err) {
+    } catch (err: any) {
       log.error(`[multitenancy] Error looking up tenant "${slug}": ${err.message}`);
       ctx.status = 503;
       ctx.body = { error: 'service_unavailable', message: 'Tenant lookup failed.' };
@@ -88,17 +88,8 @@ module.exports = (config, { strapi }) => {
 
 /**
  * Extracts the subdomain from a hostname given the rootDomain.
- *
- * Examples:
- *   extractSubdomain('acme.myapp.com', 'myapp.com') → 'acme'
- *   extractSubdomain('myapp.com', 'myapp.com')      → null
- *   extractSubdomain('a.b.myapp.com', 'myapp.com')  → null (nested not supported)
- *
- * @param {string} hostname
- * @param {string} rootDomain
- * @returns {string|null}
  */
-function extractSubdomain(hostname, rootDomain) {
+function extractSubdomain(hostname: string, rootDomain: string): string | null {
   if (!rootDomain || !hostname) return null;
 
   const suffix = `.${rootDomain}`;

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Button,
   Flex,
@@ -15,81 +15,73 @@ import {
 } from '@strapi/strapi/admin';
 import { Formik, Form } from 'formik';
 import { useIntl } from 'react-intl';
-import { useMutation, useQuery } from 'react-query';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useMutation } from 'react-query';
+import { useNavigate } from 'react-router-dom';
 
 import pluginId from '../../pluginId';
-import { getTenantUrl } from '../../utils/api';
+import { getTenantsUrl } from '../../utils/api';
 
-const validate = (values) => {
-  const errors = {};
-  if (!values.name) errors.name = 'Required';
+const validate = (values: any) => {
+  const errors: any = {};
   if (!values.slug) errors.slug = 'Required';
   else if (!/^[a-z0-9-]+$/.test(values.slug)) {
     errors.slug = 'Only lowercase letters, numbers, and hyphens';
   }
+  if (!values.name) errors.name = 'Required';
+  if (!values.schema) errors.schema = 'Required';
+  else if (!/^[a-z0-9_-]+$/.test(values.schema)) {
+    errors.schema = 'Only lowercase letters, numbers, underscores, and hyphens';
+  }
   return errors;
 };
 
-const TenantEditPage = () => {
-  const { slug } = useParams();
+const TenantCreatePage = () => {
   const { formatMessage } = useIntl();
-  const { toggleNotification } = useNotification();
+  const { toggleNotification } = (useNotification as any)();
   const navigate = useNavigate();
-  const { get, put } = useFetchClient();
+  const { post } = (useFetchClient as any)();
+  const [schemaManuallySet, setSchemaManuallySet] = useState(false);
 
-  const { data: tenant, isLoading } = useQuery({
-    queryKey: ['multitenancy', 'tenant', slug],
-    queryFn: async () => {
-      const { data } = await get(getTenantUrl(slug));
-      return data?.data;
-    },
-    enabled: !!slug,
-  });
-
-  const mutation = useMutation({
-    mutationFn: (body) => put(getTenantUrl(slug), body),
+  const mutation = (useMutation as any)({
+    mutationFn: (body: any) => post(getTenantsUrl(), body),
     onSuccess: () => {
       toggleNotification({
         type: 'success',
         message: formatMessage({
-          id: `${pluginId}.tenant.updated`,
-          defaultMessage: 'Tenant updated successfully',
+          id: `${pluginId}.tenant.created`,
+          defaultMessage: 'Tenant created successfully',
         }),
       });
       navigate('..');
     },
-    onError: (err) => {
+    onError: (err: any) => {
       const msg = err?.response?.data?.error?.message ?? err?.message;
       toggleNotification({
         type: 'danger',
         message: msg || formatMessage({
           id: `${pluginId}.error`,
-          defaultMessage: 'Error updating tenant',
+          defaultMessage: 'Error creating tenant',
         }),
       });
     },
   });
 
-  if (isLoading || !tenant) {
-    return <Page.Loading />;
-  }
+  const Hint = (Field as any).Hint;
 
   return (
     <Page.Main>
       <Page.Title>
         {formatMessage(
           { id: 'Settings.PageTitle', defaultMessage: 'Settings - {name}' },
-          { name: tenant.name }
+          { name: formatMessage({ id: `${pluginId}.add`, defaultMessage: 'Add tenant' }) }
         )}
       </Page.Title>
       <Formik
-        initialValues={{ slug: tenant.slug, name: tenant.name }}
+        initialValues={{ slug: '', name: '', schema: '' }}
         validate={validate}
         onSubmit={(values) => mutation.mutate(values)}
-        enableReinitialize
       >
-        {({ handleSubmit, values, handleChange, setFieldValue, errors }) => (
+        {({ handleSubmit, values, handleBlur, setFieldValue, errors }: any) => (
           <Form noValidate onSubmit={handleSubmit}>
             <Layouts.Header
               primaryAction={
@@ -102,13 +94,13 @@ const TenantEditPage = () => {
                 </Button>
               }
               title={formatMessage({
-                id: `${pluginId}.edit.title`,
-                defaultMessage: 'Edit tenant',
+                id: `${pluginId}.create.title`,
+                defaultMessage: 'Create tenant',
               })}
-              subtitle={formatMessage(
-                { id: `${pluginId}.edit.subtitle`, defaultMessage: 'Schema: {schema}' },
-                { schema: tenant.schema }
-              )}
+              subtitle={formatMessage({
+                id: `${pluginId}.create.subtitle`,
+                defaultMessage: 'The slug identifies the tenant by subdomain. The schema name is permanent.',
+              })}
               navigationAction={
                 <Button variant="tertiary" onClick={() => navigate('..')} startIcon={<ArrowLeft />} size="S">
                   {formatMessage({ id: 'global.back', defaultMessage: 'Back' })}
@@ -117,10 +109,10 @@ const TenantEditPage = () => {
             />
             <Layouts.Content>
               <Flex
-                background="neutral0"
                 direction="column"
                 alignItems="stretch"
                 gap={7}
+                background="neutral0"
                 hasRadius
                 paddingTop={6}
                 paddingBottom={6}
@@ -132,7 +124,7 @@ const TenantEditPage = () => {
                   <Grid.Item col={6} xs={12}>
                     <Field.Root
                       name="slug"
-                      error={errors.slug}
+                      error={errors.slug as any}
                       required
                     >
                       <Field.Label>
@@ -141,21 +133,29 @@ const TenantEditPage = () => {
                       <TextInput
                         name="slug"
                         value={values.slug || ''}
-                        onChange={(e) => setFieldValue('slug', e.target.value)}
+                        onChange={(e: any) => {
+                          const val = e.target.value;
+                          setFieldValue('slug', val);
+                          if (!schemaManuallySet) {
+                            setFieldValue('schema', val);
+                          }
+                        }}
+                        onBlur={handleBlur}
+                        placeholder="acme"
                       />
-                      <Field.Hint>
+                      <Hint>
                         {formatMessage({
-                          id: `${pluginId}.slug.hint.edit`,
-                          defaultMessage: 'Subdomain identifier — changing this affects all tenant URLs',
+                          id: `${pluginId}.slug.hint`,
+                          defaultMessage: 'Subdomain identifier — can be changed later (e.g.: acme → acme.localhost)',
                         })}
-                      </Field.Hint>
+                      </Hint>
                       <Field.Error />
                     </Field.Root>
                   </Grid.Item>
                   <Grid.Item col={6} xs={12}>
                     <Field.Root
                       name="name"
-                      error={errors.name}
+                      error={errors.name as any}
                       required
                     >
                       <Field.Label>
@@ -164,27 +164,39 @@ const TenantEditPage = () => {
                       <TextInput
                         name="name"
                         value={values.name || ''}
-                        onChange={handleChange}
+                        onChange={(e: any) => setFieldValue('name', e.target.value)}
+                        onBlur={handleBlur}
+                        placeholder="Acme Corp"
                       />
                       <Field.Error />
                     </Field.Root>
                   </Grid.Item>
                   <Grid.Item col={6} xs={12}>
-                    <Field.Root name="schema">
+                    <Field.Root
+                      name="schema"
+                      error={errors.schema as any}
+                      required
+                    >
                       <Field.Label>
                         {formatMessage({ id: `${pluginId}.schema`, defaultMessage: 'Schema Name' })}
                       </Field.Label>
                       <TextInput
                         name="schema"
-                        value={tenant.schema}
-                        disabled
+                        value={values.schema || ''}
+                        onChange={(e: any) => {
+                          setSchemaManuallySet(true);
+                          setFieldValue('schema', e.target.value);
+                        }}
+                        onBlur={handleBlur}
+                        placeholder="acme"
                       />
-                      <Field.Hint>
+                      <Hint>
                         {formatMessage({
-                          id: `${pluginId}.schema.readonly`,
-                          defaultMessage: 'Schema name cannot be changed after creation',
+                          id: `${pluginId}.schema.hint`,
+                          defaultMessage: 'PostgreSQL schema name — permanent, cannot be changed after creation',
                         })}
-                      </Field.Hint>
+                      </Hint>
+                      <Field.Error />
                     </Field.Root>
                   </Grid.Item>
                 </Grid.Root>
@@ -197,4 +209,4 @@ const TenantEditPage = () => {
   );
 };
 
-export default TenantEditPage;
+export default TenantCreatePage;

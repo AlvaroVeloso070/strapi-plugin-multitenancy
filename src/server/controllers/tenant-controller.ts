@@ -1,7 +1,8 @@
-'use strict';
 
-module.exports = ({ strapi }) => ({
-  async findAll(ctx) {
+import { Core } from '@strapi/strapi';
+
+export default ({ strapi }: { strapi: Core.Strapi }) => ({
+  async findAll(ctx: any) {
     const tenants = await strapi
       .plugin('multitenancy')
       .service('tenantManager')
@@ -10,7 +11,7 @@ module.exports = ({ strapi }) => ({
     ctx.body = { data: tenants };
   },
 
-  async findOne(ctx) {
+  async findOne(ctx: any) {
     const { slug } = ctx.params;
     const tenant = await strapi
       .plugin('multitenancy')
@@ -24,7 +25,7 @@ module.exports = ({ strapi }) => ({
     ctx.body = { data: tenant };
   },
 
-  async create(ctx) {
+  async create(ctx: any) {
     const { slug, name, schema } = ctx.request.body;
 
     if (!slug || !name || !schema) {
@@ -50,13 +51,13 @@ module.exports = ({ strapi }) => ({
         .createTenant({ slug, name, schema });
 
       ctx.created({ data: tenant });
-    } catch (err) {
+    } catch (err: any) {
       strapi.log.error(`[multitenancy] Error creating tenant: ${err.message}`);
       ctx.badRequest(err.message);
     }
   },
 
-  async update(ctx) {
+  async update(ctx: any) {
     const { slug } = ctx.params;
     const { name, slug: newSlug } = ctx.request.body;
 
@@ -77,12 +78,12 @@ module.exports = ({ strapi }) => ({
         .updateTenant(slug, { name, slug: newSlug });
 
       ctx.body = { data: tenant };
-    } catch (err) {
+    } catch (err: any) {
       ctx.badRequest(err.message);
     }
   },
 
-  async delete(ctx) {
+  async delete(ctx: any) {
     const { slug } = ctx.params;
     const { dropSchema = false } = ctx.query;
 
@@ -93,12 +94,12 @@ module.exports = ({ strapi }) => ({
         .deleteTenant(slug, { dropSchema: dropSchema === 'true' });
 
       ctx.body = { data: { slug, deleted: true } };
-    } catch (err) {
+    } catch (err: any) {
       ctx.badRequest(err.message);
     }
   },
 
-  async sync(ctx) {
+  async sync(ctx: any) {
     try {
       await strapi
         .plugin('multitenancy')
@@ -106,7 +107,7 @@ module.exports = ({ strapi }) => ({
         .syncAllSchemas();
 
       ctx.body = { data: { synced: true } };
-    } catch (err) {
+    } catch (err: any) {
       strapi.log.error(`[multitenancy] Error during sync: ${err.message}`);
       ctx.internalServerError(err.message);
     }

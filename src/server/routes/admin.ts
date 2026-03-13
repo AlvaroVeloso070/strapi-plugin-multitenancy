@@ -1,7 +1,5 @@
-'use strict';
 
-// Paths are relative: Strapi automatically adds the /multitenancy prefix for admin plugin routes.
-module.exports = {
+export default {
   type: 'admin',
   routes: [
     {

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   Button,
   Flex,
@@ -15,71 +15,83 @@ import {
 } from '@strapi/strapi/admin';
 import { Formik, Form } from 'formik';
 import { useIntl } from 'react-intl';
-import { useMutation } from 'react-query';
-import { useNavigate } from 'react-router-dom';
+import { useMutation, useQuery } from 'react-query';
+import { useNavigate, useParams } from 'react-router-dom';
 
 import pluginId from '../../pluginId';
-import { getTenantsUrl } from '../../utils/api';
+import { getTenantUrl } from '../../utils/api';
 
-const validate = (values) => {
-  const errors = {};
+const validate = (values: any) => {
+  const errors: any = {};
+  if (!values.name) errors.name = 'Required';
   if (!values.slug) errors.slug = 'Required';
   else if (!/^[a-z0-9-]+$/.test(values.slug)) {
     errors.slug = 'Only lowercase letters, numbers, and hyphens';
   }
-  if (!values.name) errors.name = 'Required';
-  if (!values.schema) errors.schema = 'Required';
-  else if (!/^[a-z0-9_-]+$/.test(values.schema)) {
-    errors.schema = 'Only lowercase letters, numbers, underscores, and hyphens';
-  }
   return errors;
 };
 
-const TenantCreatePage = () => {
+const TenantEditPage = () => {
+  const { slug } = useParams();
   const { formatMessage } = useIntl();
-  const { toggleNotification } = useNotification();
+  const { toggleNotification } = (useNotification as any)();
   const navigate = useNavigate();
-  const { post } = useFetchClient();
-  const [schemaManuallySet, setSchemaManuallySet] = useState(false);
+  const { get, put } = (useFetchClient as any)();
 
-  const mutation = useMutation({
-    mutationFn: (body) => post(getTenantsUrl(), body),
+  const { data: tenant, isLoading } = (useQuery as any)({
+    queryKey: ['multitenancy', 'tenant', slug],
+    queryFn: async () => {
+      const { data } = await get(getTenantUrl(slug!));
+      return data?.data;
+    },
+    enabled: !!slug,
+  });
+
+  const mutation = (useMutation as any)({
+    mutationFn: (body: any) => put(getTenantUrl(slug!), body),
     onSuccess: () => {
       toggleNotification({
         type: 'success',
         message: formatMessage({
-          id: `${pluginId}.tenant.created`,
-          defaultMessage: 'Tenant created successfully',
+          id: `${pluginId}.tenant.updated`,
+          defaultMessage: 'Tenant updated successfully',
         }),
       });
       navigate('..');
     },
-    onError: (err) => {
+    onError: (err: any) => {
       const msg = err?.response?.data?.error?.message ?? err?.message;
       toggleNotification({
         type: 'danger',
         message: msg || formatMessage({
           id: `${pluginId}.error`,
-          defaultMessage: 'Error creating tenant',
+          defaultMessage: 'Error updating tenant',
         }),
       });
     },
   });
+
+  const Hint = (Field as any).Hint;
+
+  if (isLoading || !tenant) {
+    return <Page.Loading />;
+  }
 
   return (
     <Page.Main>
       <Page.Title>
         {formatMessage(
           { id: 'Settings.PageTitle', defaultMessage: 'Settings - {name}' },
-          { name: formatMessage({ id: `${pluginId}.add`, defaultMessage: 'Add tenant' }) }
+          { name: tenant.name }
         )}
       </Page.Title>
       <Formik
-        initialValues={{ slug: '', name: '', schema: '' }}
+        initialValues={{ slug: tenant.slug, name: tenant.name }}
         validate={validate}
         onSubmit={(values) => mutation.mutate(values)}
+        enableReinitialize
       >
-        {({ handleSubmit, values, handleBlur, setFieldValue, errors }) => (
+        {({ handleSubmit, values, handleChange, setFieldValue, errors }: any) => (
           <Form noValidate onSubmit={handleSubmit}>
             <Layouts.Header
               primaryAction={
@@ -92,13 +104,13 @@ const TenantCreatePage = () => {
                 </Button>
               }
               title={formatMessage({
-                id: `${pluginId}.create.title`,
-                defaultMessage: 'Create tenant',
+                id: `${pluginId}.edit.title`,
+                defaultMessage: 'Edit tenant',
               })}
-              subtitle={formatMessage({
-                id: `${pluginId}.create.subtitle`,
-                defaultMessage: 'The slug identifies the tenant by subdomain. The schema name is permanent.',
-              })}
+              subtitle={formatMessage(
+                { id: `${pluginId}.edit.subtitle`, defaultMessage: 'Schema: {schema}' },
+                { schema: tenant.schema }
+              )}
               navigationAction={
                 <Button variant="tertiary" onClick={() => navigate('..')} startIcon={<ArrowLeft />} size="S">
                   {formatMessage({ id: 'global.back', defaultMessage: 'Back' })}
@@ -122,7 +134,7 @@ const TenantCreatePage = () => {
                   <Grid.Item col={6} xs={12}>
                     <Field.Root
                       name="slug"
-                      error={errors.slug}
+                      error={errors.slug as any}
                       required
                     >
                       <Field.Label>
@@ -131,29 +143,21 @@ const TenantCreatePage = () => {
                       <TextInput
                         name="slug"
                         value={values.slug || ''}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          setFieldValue('slug', val);
-                          if (!schemaManuallySet) {
-                            setFieldValue('schema', val);
-                          }
-                        }}
-                        onBlur={handleBlur}
-                        placeholder="acme"
+                        onChange={(e: any) => setFieldValue('slug', e.target.value)}
                       />
-                      <Field.Hint>
+                      <Hint>
                         {formatMessage({
-                          id: `${pluginId}.slug.hint`,
-                          defaultMessage: 'Subdomain identifier — can be changed later (e.g.: acme → acme.localhost)',
+                          id: `${pluginId}.slug.hint.edit`,
+                          defaultMessage: 'Subdomain identifier — changing this affects all tenant URLs',
                         })}
-                      </Field.Hint>
+                      </Hint>
                       <Field.Error />
                     </Field.Root>
                   </Grid.Item>
                   <Grid.Item col={6} xs={12}>
                     <Field.Root
                       name="name"
-                      error={errors.name}
+                      error={errors.name as any}
                       required
                     >
                       <Field.Label>
@@ -162,39 +166,27 @@ const TenantCreatePage = () => {
                       <TextInput
                         name="name"
                         value={values.name || ''}
-                        onChange={(e) => setFieldValue('name', e.target.value)}
-                        onBlur={handleBlur}
-                        placeholder="Acme Corp"
+                        onChange={handleChange}
                       />
                       <Field.Error />
                     </Field.Root>
                   </Grid.Item>
                   <Grid.Item col={6} xs={12}>
-                    <Field.Root
-                      name="schema"
-                      error={errors.schema}
-                      required
-                    >
+                    <Field.Root name="schema">
                       <Field.Label>
                         {formatMessage({ id: `${pluginId}.schema`, defaultMessage: 'Schema Name' })}
                       </Field.Label>
                       <TextInput
                         name="schema"
-                        value={values.schema || ''}
-                        onChange={(e) => {
-                          setSchemaManuallySet(true);
-                          setFieldValue('schema', e.target.value);
-                        }}
-                        onBlur={handleBlur}
-                        placeholder="acme"
+                        value={tenant.schema}
+                        disabled
                       />
-                      <Field.Hint>
+                      <Hint>
                         {formatMessage({
-                          id: `${pluginId}.schema.hint`,
-                          defaultMessage: 'PostgreSQL schema name — permanent, cannot be changed after creation',
+                          id: `${pluginId}.schema.readonly`,
+                          defaultMessage: 'Schema name cannot be changed after creation',
                         })}
-                      </Field.Hint>
-                      <Field.Error />
+                      </Hint>
                     </Field.Root>
                   </Grid.Item>
                 </Grid.Root>
@@ -207,4 +199,4 @@ const TenantCreatePage = () => {
   );
 };
 
-export default TenantCreatePage;
+export default TenantEditPage;

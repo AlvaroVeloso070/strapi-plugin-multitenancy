@@ -1,19 +1,17 @@
-'use strict';
 
-const tenantContext = require('../context/tenant-context');
-const { createLogger } = require('../utils/logger');
+import * as tenantContext from '../context/tenant-context';
+import { createLogger } from '../utils/logger';
+import { Core } from '@strapi/strapi';
 
 /**
  * Strapi 5 uses getSchemaName() and getConnection().withSchema() to qualify
  * table names with a schema. The schema comes from connectionSettings (static config).
  * This proxy overrides getSchemaName() to return the tenant's schema name
  * when executing inside a tenant context.
- *
- * @param {object} strapi - Global Strapi instance
  */
-function install(strapi) {
+export function install(strapi: Core.Strapi) {
   const log = createLogger(strapi);
-  const db = strapi.db;
+  const db = (strapi as any).db;
 
   if (!db || typeof db.getSchemaName !== 'function') {
     log.warn('[multitenancy] strapi.db.getSchemaName not found — proxy not installed.');
@@ -38,4 +36,4 @@ function install(strapi) {
   log.info('[multitenancy] strapi.db.getSchemaName proxy installed.');
 }
 
-module.exports = { install };
+export default { install };

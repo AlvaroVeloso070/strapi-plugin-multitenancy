@@ -1,8 +1,8 @@
 {
   "name": "strapi-plugin-multitenancy",
-  "version": "1.0.2",
+  "version": "1.1.0",
   "description": "PostgreSQL schema-per-tenant isolation for Strapi 5. Identifies tenants via subdomain, propagates context through AsyncLocalStorage, and proxies Strapi's DB layer to route queries to the correct schema.",
-  "main": "strapi-server.js",
+  "main": "dist/server/index.js",
   "license": "MIT",
   "author": {
     "name": "AlvaroVeloso070",
@@ -36,6 +36,14 @@
   "peerDependencies": {
     "@strapi/strapi": "^5.0.0"
   },
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc -w",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "prepublishOnly": "npm run build"
+  },
   "strapi": {
     "name": "multitenancy",
     "displayName": "Multitenant",
@@ -44,14 +52,25 @@
     "required": false
   },
   "exports": {
-    ".": "./strapi-server.js",
-    "./strapi-admin": "./admin/src/index.js",
-    "./strapi-server": "./strapi-server.js",
+    ".": "./dist/server/index.js",
+    "./strapi-admin": "./dist/admin/index.js",
+    "./strapi-server": "./dist/server/index.js",
     "./package.json": "./package.json"
   },
   "files": [
-    "admin",
-    "server",
-    "strapi-server.js"
-  ]
+    "dist"
+  ],
+  "devDependencies": {
+    "@strapi/sdk-js": "^1.0.0",
+    "@strapi/strapi": "^5.0.0",
+    "@strapi/typescript-utils": "^5.0.0",
+    "@types/node": "^22.13.9",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.0.4",
+    "@vitest/coverage-v8": "^3.0.0",
+    "globby": "^14.1.0",
+    "rimraf": "^6.0.1",
+    "typescript": "^5.8.2",
+    "vitest": "^3.0.0"
+  }
 }

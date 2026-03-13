@@ -27,13 +27,14 @@ import { useNavigate } from 'react-router-dom';
 
 import { getTenantsUrl, getTenantUrl, getSyncUrl } from '../../utils/api';
 
+
 const TenantsListPage = () => {
-  const { toggleNotification } = useNotification();
-  const { get, post, del } = useFetchClient();
-  const queryClient = useQueryClient();
+  const { toggleNotification } = (useNotification as any)();
+  const { get, post, del } = (useFetchClient as any)();
+  const queryClient = (useQueryClient as any)();
   const navigate = useNavigate();
 
-  const { data: tenants = [], isLoading } = useQuery({
+  const { data: tenants = [], isLoading } = (useQuery as any)({
     queryKey: ['tenants'],
     queryFn: async () => {
       const { data } = await get(getTenantsUrl());
@@ -41,8 +42,8 @@ const TenantsListPage = () => {
     },
   });
 
-  const deleteMutation = useMutation({
-    mutationFn: (slug) => del(getTenantUrl(slug)),
+  const deleteMutation = (useMutation as any)({
+    mutationFn: (slug: string) => del(getTenantUrl(slug)),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tenants'] });
       toggleNotification({
@@ -50,13 +51,13 @@ const TenantsListPage = () => {
         message: 'Tenant removed successfully',
       });
     },
-    onError: (err) => {
+    onError: (err: any) => {
       const msg = err?.response?.data?.error?.message ?? err?.message;
       toggleNotification({ type: 'danger', message: msg || 'Error deleting tenant' });
     },
   });
 
-  const syncMutation = useMutation({
+  const syncMutation = (useMutation as any)({
     mutationFn: () => post(getSyncUrl()),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tenants'] });
@@ -65,7 +66,7 @@ const TenantsListPage = () => {
         message: 'Schemas synchronized successfully',
       });
     },
-    onError: (err) => {
+    onError: (err: any) => {
       const msg = err?.response?.data?.error?.message ?? err?.message;
       toggleNotification({ type: 'danger', message: msg || 'Error synchronizing schemas' });
     },
@@ -86,7 +87,7 @@ const TenantsListPage = () => {
               variant="secondary"
               startIcon={<ArrowClockwise />}
               onClick={() => syncMutation.mutate()}
-              loading={syncMutation.isPending}
+              loading={syncMutation.isLoading}
             >
               Sync schemas
             </Button>
